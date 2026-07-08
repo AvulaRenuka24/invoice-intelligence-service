@@ -8,7 +8,7 @@ PROMPT_FILE = Path("prompts/answer_v1.txt")
 
 class QAResponse(BaseModel):
     answer: str
-    sources: list[str]
+    cited_invoices: list[str]
     context_found: bool
 
 
@@ -65,7 +65,7 @@ def ask(
     if not chunks:
         return QAResponse(
             answer="I don't know",
-            sources=[],
+            cited_invoices=[],
             context_found=False
         )
 
@@ -74,7 +74,7 @@ def ask(
         for chunk in chunks
     )
 
-    sources = sorted(
+    cited_invoices = sorted(
         set(
             chunk["invoice_number"]
             for chunk in chunks
@@ -85,7 +85,7 @@ def ask(
 
     prompt = prompt.replace("{question}", question)
     prompt = prompt.replace("{context}", context)
-    prompt = prompt.replace("{sources}", ", ".join(sources))
+    prompt = prompt.replace("{cited_invoices}", ", ".join(cited_invoices))
 
     messages = [
         {
@@ -104,20 +104,20 @@ def ask(
     if answer.strip().lower() == "i don't know":
         return QAResponse(
             answer="I don't know",
-            sources=[],
+            cited_invoices=[],
             context_found=False
         )
 
     if not faithfulness_check(answer, chunks):
         return QAResponse(
             answer="I don't know",
-            sources=[],
+            cited_invoices=[],
             context_found=False
         )
 
     return QAResponse(
         answer=answer,
-        sources=sources,
+        cited_invoices=cited_invoices,
         context_found=True
     )
 
@@ -136,8 +136,8 @@ if __name__ == "__main__":
         print("\nAnswer")
         print(result.answer)
 
-        print("\nSources")
-        print(result.sources)
+        print("\nCited Invoices")
+        print(result.cited_invoices)
 
         print("\nContext Found")
         print(result.context_found)
