@@ -1,5 +1,5 @@
 """
-Task 1 – Local LLM Wrapper
+Task 1 - Local LLM Wrapper
 
 Loads the Qwen/Qwen2.5-0.5B-Instruct model once at module level.
 Provides a generate() function that returns only the generated text.
