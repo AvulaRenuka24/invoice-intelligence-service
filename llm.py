@@ -50,11 +50,12 @@ MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
 try:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
-        torch_dtype="auto",
-        device_map="auto",
-    )
+        trust_remote_code=True
+    ).to(device)
 
     logger.info(f"Model loaded successfully: {MODEL_NAME}")
 

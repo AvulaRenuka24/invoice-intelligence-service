@@ -1,15 +1,12 @@
+import time
 from pathlib import Path
 from pydantic import BaseModel
 from llm import generate
 from retriever import search
+from schemas import AnswerResponse 
 
 PROMPT_FILE = Path("prompts/answer_v1.txt")
 
-
-class QAResponse(BaseModel):
-    answer: str
-    cited_invoices: list[str]
-    context_found: bool
 
 
 def load_prompt(prompt_file=PROMPT_FILE):
@@ -27,6 +24,29 @@ def clean_response(text: str) -> str:
 
     return text.strip()
 
+def faithfulness_ratio(answer: str, chunks: list) -> float:
+    """
+    Return the fraction of 'meaningful' words in the answer
+    that appear in any retrieved chunk (0.0 to 1.0).
+    """
+    if not answer or not chunks:
+        return 0.0
+
+    answer_words = [
+        word.lower()
+        for word in answer.replace(",", " ").split()
+        if len(word) > 2
+    ]
+    if not answer_words:
+        return 0.0
+
+    found = 0
+    for word in answer_words:
+        for chunk in chunks:
+            if word in chunk["chunk"].lower():
+                found += 1
+                break
+    return found / len(answer_words)
 
 def faithfulness_check(answer: str, chunks: list) -> bool:
     """
@@ -57,24 +77,28 @@ def faithfulness_check(answer: str, chunks: list) -> bool:
 
 def ask(
     question: str,
-    prompt_file=PROMPT_FILE
-) -> QAResponse:
+    prompt_file=PROMPT_FILE,
+    confidence_threshold: float = 0.6,
+) -> AnswerResponse:
 
     chunks = search(question)
 
     if not chunks:
-        return QAResponse(
+        return AnswerResponse(
             answer="I don't know",
-            cited_invoices=[],
-            context_found=False
+            confidence=0.0,
+            sources=[],
+            needs_review=False,
+            provider="local",          # until Renuka's service is fully integrated
+            latency_ms=0,
         )
 
+    # prepare context and sources
     context = "\n\n".join(
         chunk["chunk"]
         for chunk in chunks
     )
-
-    cited_invoices = sorted(
+    sources = sorted(
         set(
             chunk["invoice_number"]
             for chunk in chunks
@@ -82,62 +106,73 @@ def ask(
     )
 
     prompt = load_prompt(prompt_file)
-
     prompt = prompt.replace("{question}", question)
     prompt = prompt.replace("{context}", context)
-    prompt = prompt.replace("{cited_invoices}", ", ".join(cited_invoices))
+    prompt = prompt.replace("{sources}", ", ".join(sources))
 
-    messages = [
-        {
-            "role": "user",
-            "content": prompt
-        }
-    ]
+    messages = [{"role": "user", "content": prompt}]
 
-    answer = clean_response(
-        generate(
-            messages,
-            max_tokens=256
-        )
-    )
+    start = time.time()
+    raw_answer = generate(messages, max_tokens=256)
+    latency = int((time.time() - start) * 1000)
+    answer = clean_response(raw_answer)
 
+    # Compute retrieval score from the chunks
+    retrieval_scores = [chunk.get("score", 0.0) for chunk in chunks]
+    retrieval_score = sum(retrieval_scores) / len(retrieval_scores)
+
+    # Faithfulness ratio
+    faithful_ratio = faithfulness_ratio(answer, chunks)
+
+    # Simple combined confidence (weights can be tuned)
+    confidence = 0.5 * faithful_ratio + 0.5 * retrieval_score
+
+    # If the model explicitly said "I don't know", treat as refusal
     if answer.strip().lower() == "i don't know":
-        return QAResponse(
+        return AnswerResponse(
             answer="I don't know",
-            cited_invoices=[],
-            context_found=False
+            confidence=0.0,
+            sources=[],
+            needs_review=False,
+            provider="local",
+            latency_ms=latency,
         )
 
-    if not faithfulness_check(answer, chunks):
-        return QAResponse(
+    # If confidence is too low, flag for review and possibly refuse
+    needs_review = confidence < confidence_threshold
+
+    # If very low, we can also change answer to "I don't know"
+    if confidence < 0.3:   # very weak, refuse
+        return AnswerResponse(
             answer="I don't know",
-            cited_invoices=[],
-            context_found=False
+            confidence=confidence,
+            sources=[],
+            needs_review=True,
+            provider="local",
+            latency_ms=latency,
         )
 
-    return QAResponse(
+    return AnswerResponse(
         answer=answer,
-        cited_invoices=cited_invoices,
-        context_found=True
+        confidence=round(confidence, 4),
+        sources=sources,
+        needs_review=needs_review,
+        provider="local",
+        latency_ms=latency,
     )
 
 
 if __name__ == "__main__":
-
     while True:
-
         question = input("\nQuestion (type 'exit' to quit): ")
-
         if question.lower() == "exit":
             break
 
         result = ask(question)
 
-        print("\nAnswer")
-        print(result.answer)
-
-        print("\nCited Invoices")
-        print(result.cited_invoices)
-
-        print("\nContext Found")
-        print(result.context_found)
+        print("\nAnswer:", result.answer)
+        print("Confidence:", result.confidence)
+        print("Sources:", result.sources)
+        print("Needs Review:", result.needs_review)
+        print("Provider:", result.provider)
+        print("Latency (ms):", result.latency_ms)
