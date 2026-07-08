@@ -10,6 +10,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+
 class LineItem(BaseModel):
     """A single line item on an invoice."""
 
@@ -25,3 +26,11 @@ class Invoice(BaseModel):
     total_amount: float = Field(default=0.0)
     currency: str = Field(default="")
     line_items: List[LineItem] = Field(default_factory=list)
+
+class AnswerResponse(BaseModel):
+    answer: str
+    confidence: float         
+    sources: list[str]          
+    needs_review: bool          
+    provider: str               
+    latency_ms: int  
