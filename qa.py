@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic import BaseModel
-from llm import generate
+from llm_service import generate
 from retriever import search
 
 PROMPT_FILE = Path("prompts/answer_v1.txt")
