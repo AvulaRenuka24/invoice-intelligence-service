@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 from pydantic import BaseModel
-from llm import generate
+from llm_service import generate
 from retriever import search
 from schemas import AnswerResponse 
 
