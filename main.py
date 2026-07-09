@@ -4,7 +4,8 @@ import shutil
 from fastapi import FastAPI, HTTPException, UploadFile, File
 
 from qa import ask
-from extract import extract_pdf_text, extract_invoice
+from extract import extract_pdf_text
+from llm_service import extract
 
 app = FastAPI(
     title="Invoice Q&A and Insights API",
