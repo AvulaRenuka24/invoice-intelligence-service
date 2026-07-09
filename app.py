@@ -1,5 +1,5 @@
-# app.py
 import uuid
+import pandas as pd
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
@@ -23,6 +23,69 @@ class JobStatus(BaseModel):
     processed: int
     duplicate: int
     failed: int
+
+@app.get("/review")
+async def get_review_queue():
+    """Return invoices flagged for human review (needs_review=True)."""
+    csv_path = Path("data/extracted_invoices.csv")
+    if not csv_path.exists():
+        return {"error": "No extracted data yet. Run an import first."}
+    
+    df = pd.read_csv(csv_path)
+    review_items = df[df["needs_review"] == True]
+    review_items = review_items.sort_values("confidence")
+    
+    results = []
+    for _, row in review_items.iterrows():
+        # Replace NaN with safe defaults
+        conf = row["confidence"]
+        if pd.isna(conf):
+            conf = 0.0
+        else:
+            conf = float(conf)
+        
+        needs_rev = row["needs_review"]
+        if pd.isna(needs_rev):
+            needs_rev = False
+        else:
+            needs_rev = bool(needs_rev)
+        
+        results.append({
+            "invoice_number": row["invoice_number"] if pd.notna(row["invoice_number"]) else "",
+            "vendor": row["vendor"] if pd.notna(row["vendor"]) else "",
+            "invoice_date": row["invoice_date"] if pd.notna(row["invoice_date"]) else "",
+            "total_amount": float(row["total_amount"]) if pd.notna(row["total_amount"]) else 0.0,
+            "currency": row["currency"] if pd.notna(row["currency"]) else "",
+            "confidence": conf,
+            "needs_review": needs_rev,
+            "source_file": row.get("source_file", "")
+        })
+    return {"count": len(results), "items": results}
+
+@app.patch("/review/{invoice_number}")
+async def resolve_review(invoice_number: str, updates: dict):
+    """Confirm or correct an invoice extraction and clear the review flag."""
+    csv_path = Path("data/extracted_invoices.csv")
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="No data found")
+    
+    df = pd.read_csv(csv_path)
+    idx = df[df["invoice_number"] == invoice_number].index
+    if len(idx) == 0:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Apply updates to the specific row
+    for field, value in updates.items():
+        if field in df.columns:
+            df.at[idx[0], field] = value
+    
+    # Set review status
+    df.at[idx[0], "needs_review"] = False
+    df.at[idx[0], "reviewed_by"] = "rohit"   # you can make this dynamic later
+    df.at[idx[0], "reviewed_at"] = str(time.time())
+    
+    df.to_csv(csv_path, index=False)
+    return {"status": "reviewed", "invoice_number": invoice_number}
 
 @app.post("/imports")
 async def import_folder(req: ImportRequest, background_tasks: BackgroundTasks):
