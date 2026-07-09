@@ -1,21 +1,19 @@
-source_file,invoice_number,vendor,invoice_date,total_amount,currency,line_items
-1.pdf,INV-24990,Massive DYNAMIC,01 June 2026,13082.48,GBP,[]
-2.pdf,,STARK INDUSTRIES LLC,16 February 2026,16866.31,,[]
-3.pdf,,Wayne Enterprises LTD,11.12.2025,5040.48,GBP,[]
-4.pdf,,GEKKO AND CO,2026-02-08,19388.92,USD,[]
-5.pdf,66829-INV,Wayne Enterprises LTD,18 April 2025,19.4149,EUR,[]
-6.pdf,,GLOBEX LLC,"15 January 2025, terms Net 45, due 01/30/2025.",0.0,,[]
-7.pdf,,,,0.0,,[]
-8.pdf,,BLUTH COMPANY,"26 November 2025, terms Net 15, due 01/25/2026.",0.0,,[]
-9.pdf,,INVOICE,,0.0,,[]
-10.pdf,89362/INV. Account for remittance AC8201459,APERTURE LABS,2025-08-04,19837.02,INR,[]
-11.pdf,INV-26830. Customer account AC6265102. PO PO-37192.,BLACK MESA SUPPLIES,"11.03.2025, terms Net 45, due 10.04.2025.",0.0,,[]
-12.pdf,INV/15930,Cyberdyne Systems,2025-10-25,10796.66,GBP,[]
-13.pdf,INV-6245,UMBRELLA CORPORATION INC,"Oct 14, 2025",332539.0,EUR,"[LineItem(description='Premium Support Plan', quantity=8.0, unit_price=16313.0, amount=130504.0), LineItem(description='Server Hardware', quantity=3.0, unit_price=67345.0, amount=202035.0)]"
-14.pdf,INV-33776,UMBRELLA CORPORATION INC,2026-11-12,3884.92,EUR,[]
-15.pdf,INV/10295,OSCORP INDUSTRIES,11/01/2025,499.0,INR,[]
-16.pdf,,OSCORP INDUSTRIES,"Jul 27, 2025, terms Net 30, due 10 September 2025.",0.0,,[]
-17.pdf,,Cyberdyne Systems,03.01.2025,12699.21,GBP,[]
-18.pdf,,Hooli Inc,10/27/2025,12917.27,,[]
-19.pdf,INV-72483,Wayne Enterprises LTD,2026-07-28,11709.74,GBP,[]
-20.pdf,,,,0.0,,[]
+source_file,invoice_number,vendor,invoice_date,total_amount,currency,line_items,confidence,needs_review
+1.pdf,INV-24990,Massive,2026-06-01,13082.48,GBP,"[{'description': 'Data Subscription', 'amount': 5716.8}, {'description': 'Consulting Hours', 'amount': 6396.61}, {'description': 'Subscription', 'amount': 476.4}]",0.5,True
+2.pdf,,STARK INDUSTRIES LLC,16 February 2026,0.0,,[],0.5,True
+3.pdf,,WAYNE ENTERPRISES LTD,11.12.2025,0.0,GBP,[],0.5,False
+4.pdf,INV-1001,GEKKO AND CO,2026-02-08,19388.92,USD,"[{'description': 'Data Subscription', 'amount': 985.95}, {'description': 'Data Subscription', 'amount': 5947.76}, {'description': 'Freight and Shipping', 'amount': 630.88}, {'description': 'Onsite Training', 'amount': 4536.6}, {'description': 'Spare Parts', 'amount': 4056.24}, {'description': 'Pay by Transfer', 'amount': 1274.38}, {'description': 'IBAN DE53 1274 3859', 'amount': 1274.38}, {'description': 'Account for Remittance', 'amount': 1274.38}]",0.5,False
+5.pdf,66829-INV,Wayne Enterprises LTD,2025-04-18,19.4149,EUR,"[{'description': 'Subtotal', 'amount': 17.62718}, {'description': 'Tax', 'amount': 1.76272}, {'description': 'Shipping', 'amount': 50.0}, {'description': 'Annual Software License', 'amount': 468.56}, {'description': 'Freight and Shipping', 'amount': 327.65}, {'description': 'Security Audit', 'amount': 499.98}, {'description': 'License Renewal', 'amount': 354.57}]",0.5,False
+6.pdf,89226-INV,GLOBEX LLC,15 January 2025,11420.47,USD,"[{'description': 'Design Work', 'amount': 1011.0}, {'description': 'Freight and Shipping', 'amount': 1783.8}, {'description': 'Freight and Shipping', 'amount': 326.42}, {'description': 'Data Subscription', 'amount': 7717.32}, {'description': 'Total', 'amount': 7717.32}]",0.5,False
+8.pdf,INV-93354,BLUTH COMPANY,2025-11-26,20506.61,INR,"[{'description': 'Cloud Hosting', 'amount': 5300.37}, {'description': 'Onsite Training', 'amount': 5770.82}, {'description': 'Consulting Hours', 'amount': 6307.29}]",0.5,False
+9.pdf,INVOICE-1234,ABC Company,2023-10-05,1000.0,USD,"[{'description': 'Product A', 'amount': 50.0}, {'description': 'Product B', 'amount': 60.0}]",0.5,False
+10.pdf,INV-1001,APERTURE LABS,2025-08-04,19837.02,INR,"[{'description': 'Onsite training', 'amount': 4115.88}, {'description': 'Freight and shipping', 'amount': 7863.9}, {'description': 'License renewal', 'amount': 153.91}, {'description': 'Spare parts', 'amount': 4397.16}]",0.5,False
+11.pdf,INV-26830,Black Mesa Supplies,2025-11-03,6923.62,USD,"[{'description': 'Cloud Hosting', 'amount': 988.12}, {'description': 'License Renewal', 'amount': 3553.08}, {'description': 'Data Subscription', 'amount': 1536.08}, {'description': 'Annual Software License', 'amount': 846.34}, {'description': 'Subtotal', 'amount': 0.0}, {'description': 'Tax', 'amount': 553.89}, {'description': 'Shipping', 'amount': 12.5}, {'description': 'Total', 'amount': 0.0}, {'description': 'Payment Due', 'amount': 0.0}, {'description': 'Customer Account', 'amount': 0.0}, {'description': 'PO Item', 'amount': 0.0}]",0.5,False
+12.pdf,,CYBERDYNE SYSTEMS,,0.0,GBP,[],0.5,False
+13.pdf,INV-6245,UMBRELLA CORPORATION INC,2025-10-14,332539.0,EUR,"[{'description': 'Premium Support Plan', 'amount': 130504.0}, {'description': 'Server Hardware', 'amount': 202035.0}]",0.5,False
+14.pdf,INV-33776,UMBRELLA CORPORATION INC,2026-11-12,3884.92,EUR,"[{'description': 'Premium Support Plan', 'amount': 1790.46}, {'description': 'License Renewal', 'amount': 1336.04}, {'description': 'Design Work', 'amount': 470.65}]",0.5,False
+15.pdf,INV-10295,OSCORP INDUSTRIES,2026-11-01,4773.55,USD,"[{'description': 'License Renewal', 'amount': 3439.36}, {'description': 'Design Work', 'amount': 312.99}, {'description': 'Data Subscription', 'amount': 499.44}, {'description': 'Annual Software License', 'amount': 521.76}, {'description': 'Document 2026/INV/10295', 'amount': 0.0}]",0.5,False
+16.pdf,INV-58592,OSCORP INDUSTRIES,2025-07-27,12692.94,INR,"[{'description': 'Design Work', 'amount': 2224.6}, {'description': 'Spare Parts', 'amount': 9244.29}, {'description': 'Onsite Training', 'amount': 70.15}]",0.5,False
+17.pdf,INV-74453,Cyberdyne Systems,2026-01-03,12699.21,GBP,"[{'description': 'Premium Support Plan', 'amount': 6236.37}, {'description': 'Freight and Shipping', 'amount': 1396.85}, {'description': 'Security Audit', 'amount': 3094.92}, {'description': 'Security Audit', 'amount': 343.88}, {'description': 'Subtotal', 'amount': 10728.14}, {'description': 'Tax', 'amount': 1800.0}, {'description': 'Shipping', 'amount': 40.0}, {'description': 'Total', 'amount': 12699.21}]",0.5,False
+18.pdf,INV-2026-097587,Hooli Inc.,10/27/2025,12917.27,USD,"[{'description': 'Cloud Hosting', 'amount': 3498.08}, {'description': 'Onsite Training', 'amount': 2565.92}, {'description': 'Quarterly Maintenance', 'amount': 1014.4}, {'description': 'Spare Parts', 'amount': 481.92}, {'description': 'Server Hardware', 'amount': 3386.52}]",0.5,False
+19.pdf,INV-72483,Wayne Enterprises LTD,2026-07-28,11709.74,GBP,"[{'description': 'Premium Support Plan', 'amount': 7928.5}, {'description': 'Design Work', 'amount': 3661.75}, {'description': 'Security Audit', 'amount': 119.49}, {'description': 'Subtotal', 'amount': 11709.74}, {'description': 'Shipping', 'amount': 25.0}]",0.5,False
