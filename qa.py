@@ -4,10 +4,12 @@ from pydantic import BaseModel
 from llm_service import generate
 from retriever import search
 from schemas import AnswerResponse 
+import re
+import logging
 
 PROMPT_FILE = Path("prompts/answer_v1.txt")
 
-
+logger = logging.getLogger(__name__)
 
 def load_prompt(prompt_file=PROMPT_FILE):
     return Path(prompt_file).read_text(encoding="utf-8")
@@ -151,6 +153,20 @@ def ask(
             provider="local",
             latency_ms=latency,
         )
+
+    # 3.5 Post‑check for person questions (who, what is the CEO, etc.)
+    person_keywords = r'\b(?:who|ceo|founder|employee|auditor|president|director|owner|manager|staff)\b'
+    if re.search(person_keywords, question, re.IGNORECASE):
+        person_pattern = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', answer)
+        invoice_stop_words = {"Massive Dynamic", "Acme Corp", "Initech Inc", "Globex LLC",
+                              "Vandelay Industries", "Cyberdyne Systems", "Wonka Industries",
+                              "Nakatomi Trading", "Gekko And Co", "Aperture Labs", "Pied Piper Llc"}
+        possible_names = [name for name in person_pattern if name.lower() not in
+                          [s.lower() for s in invoice_stop_words]]
+        if not possible_names:
+            logger.info("Question asks for a person but no person name found – forcing I don't know.")
+            answer = "I don't know"
+            cited_invoices = []
 
     return AnswerResponse(
         answer=answer,

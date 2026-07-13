@@ -1,15 +1,19 @@
 """
-Task 2 – Invoice Extraction
+Task 2 - Invoice Extraction
 
 Extract invoice data from PDFs using the centralized LLM service.
 """
 
 import csv
 from pathlib import Path
-
 import pdfplumber
-
 from llm_service import extract
+from extract_fallback import extract_with_regex
+from models import Invoice
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def extract_pdf_text(pdf_path: Path) -> str:
@@ -24,71 +28,7 @@ def extract_pdf_text(pdf_path: Path) -> str:
 
     return "\n".join(pages)
 
-
-<<<<<<< HEAD
-=======
-def extract_invoice(
-    invoice_text: str,
-    filename: str = "sample",
-    prompt_file: str = BEST_PROMPT,
-) -> Invoice:
-    """
-    Extract invoice data using a three-stage pipeline:
-
-    1. LLM extraction with the given prompt
-    2. Retry once – includes the validation error in the prompt
-    3. Regex fallback
-
-    Parameters
-    ----------
-    invoice_text : str
-        Raw text extracted from the PDF.
-    filename : str
-        Name of the source file (for logging).
-    prompt_file : str
-        Prompt template to use (default: best prompt from Task 3).
-
-    Returns
-    -------
-    Invoice
-        Validated Invoice object.
-    """
-
-    prompt = load_prompt(prompt_file).replace("{text}", invoice_text)
-
-    # --- Stage 1: LLM ---
-    try:
-        response = call_llm(prompt)
-        invoice = Invoice.model_validate_json(response)
-        log_result(filename, "llm")
-        return invoice
-
-    except (ValidationError, Exception) as first_error:
-        logger.warning(f"{filename}: LLM attempt 1 failed – {first_error}")
-
-    # --- Stage 2: Retry with error feedback ---
-    try:
-        retry_prompt = (
-            prompt
-            + "\n\nPrevious response failed validation.\n"
-            + str(first_error)
-            + "\nReturn ONLY valid JSON matching the schema exactly."
-        )
-
-        response = call_llm(retry_prompt)
-        invoice = Invoice.model_validate_json(response)
-        log_result(filename, "retry")
-        return invoice
-
-    except Exception as retry_error:
-        logger.warning(f"{filename}: Retry failed – {retry_error}")
-
-    # --- Stage 3: Regex fallback ---
-    invoice = extract_with_regex(invoice_text)
-    log_result(filename, "fallback")
-    return invoice
-
-def compute_extraction_confidence(invoice_text: str, llm_invoice) -> tuple[float, bool]:
+def compute_extraction_confidence(invoice_text: str, llm_invoice: Invoice) -> tuple[float, bool]:
     """
     Compute a confidence score for an extraction.
     Signals:
@@ -123,7 +63,6 @@ def compute_extraction_confidence(invoice_text: str, llm_invoice) -> tuple[float
 # CLI – Extract from first 20 PDFs and save CSV
 # ---------------------------------------------------------------------------
 
->>>>>>> 00b95a9 (Complete Rohit Tasks 1-4: confidence, review queue, background import, cancellation)
 if __name__ == "__main__":
 
     invoice_folder = Path("data/raw_invoices/invoices_corpus")
@@ -152,9 +91,9 @@ if __name__ == "__main__":
 
         invoice = extract(
             invoice_text=text,
-            filename=file.name,
+            filename=file.name,  
         )
-
+        conf, needs_rev = compute_extraction_confidence(text, invoice)
         print("=" * 60)
         print(file.name)
         print(invoice.model_dump())
@@ -167,9 +106,9 @@ if __name__ == "__main__":
                 "invoice_date": invoice.invoice_date,
                 "total_amount": invoice.total_amount,
                 "currency": invoice.currency,
-                "line_items": str(
-                    [item.model_dump() for item in invoice.line_items]
-                ),
+                "line_items": str([item.model_dump() for item in invoice.line_items]),
+                "confidence": conf,
+                "needs_review": needs_rev,
             }
         )
 
@@ -181,6 +120,8 @@ if __name__ == "__main__":
         "total_amount",
         "currency",
         "line_items",
+        "confidence",
+        "needs_review",
     ]
 
     with open(output_file, "w", newline="", encoding="utf-8") as f:
