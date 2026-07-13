@@ -87,7 +87,7 @@ def ask(
         return AnswerResponse(
             answer="I don't know",
             confidence=0.0,
-            sources=[],
+            cited_invoices = [],
             needs_review=False,
             provider="local",          # until Renuka's service is fully integrated
             latency_ms=0,
@@ -98,7 +98,7 @@ def ask(
         chunk["chunk"]
         for chunk in chunks
     )
-    sources = sorted(
+    cited_invoices = sorted(
         set(
             chunk["invoice_number"]
             for chunk in chunks
@@ -108,7 +108,7 @@ def ask(
     prompt = load_prompt(prompt_file)
     prompt = prompt.replace("{question}", question)
     prompt = prompt.replace("{context}", context)
-    prompt = prompt.replace("{sources}", ", ".join(sources))
+    prompt = prompt.replace("{cited_invoices}", ", ".join(cited_invoices))
 
     messages = [{"role": "user", "content": prompt}]
 
@@ -132,7 +132,7 @@ def ask(
         return AnswerResponse(
             answer="I don't know",
             confidence=0.0,
-            sources=[],
+            cited_invoices = [],
             needs_review=False,
             provider="local",
             latency_ms=latency,
@@ -146,7 +146,7 @@ def ask(
         return AnswerResponse(
             answer="I don't know",
             confidence=confidence,
-            sources=[],
+            cited_invoices = [],
             needs_review=True,
             provider="local",
             latency_ms=latency,
@@ -155,7 +155,7 @@ def ask(
     return AnswerResponse(
         answer=answer,
         confidence=round(confidence, 4),
-        sources=sources,
+        cited_invoices = cited_invoices,
         needs_review=needs_review,
         provider="local",
         latency_ms=latency,
@@ -172,7 +172,7 @@ if __name__ == "__main__":
 
         print("\nAnswer:", result.answer)
         print("Confidence:", result.confidence)
-        print("Sources:", result.sources)
+        print("Cited Invoices:", result.cited_invoices)
         print("Needs Review:", result.needs_review)
         print("Provider:", result.provider)
         print("Latency (ms):", result.latency_ms)
