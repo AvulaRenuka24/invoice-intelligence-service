@@ -15,7 +15,8 @@ import logging
 import os
 import time
 from typing import Dict, List
-
+from models import Invoice
+from extract_fallback import extract_with_regex
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -239,3 +240,61 @@ def extract(
     log_result(filename, "fallback")
 
     return invoice
+# ---------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------
+
+def get_health():
+    """
+    Health information for the active LLM.
+    """
+    return {
+        "status": "healthy",
+        "provider": "local",
+        "model": MODEL_NAME,
+    }
+
+
+# ---------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------
+
+def get_metrics():
+    """
+    Basic runtime metrics.
+    """
+    return {
+        "model": MODEL_NAME,
+        "device": str(model.device),
+    }
+    
+def compute_extraction_confidence(invoice_text: str, llm_invoice: Invoice) -> tuple[float, bool]:
+    """
+    Compute a confidence score for an extraction.
+    Signals:
+      - Regex agreement: compare LLM total_amount with regex total
+      - Field completeness: whether key fields are non‑empty
+    Returns (confidence, needs_review)
+    """
+    # Regex agreement
+    try:
+        regex_invoice = extract_with_regex(invoice_text)
+        regex_total = regex_invoice.total_amount
+        llm_total = llm_invoice.total_amount
+        if regex_total and llm_total and abs(regex_total - llm_total) < 0.01:
+            agreement = 1.0
+        else:
+            agreement = 0.0
+    except Exception:
+        agreement = 0.0
+
+    # Field completeness
+    fields = [llm_invoice.vendor, llm_invoice.invoice_number,
+              llm_invoice.invoice_date, llm_invoice.currency]
+    present = sum(1 for f in fields if f and str(f).strip())
+    completeness = present / len(fields) if fields else 0.0
+
+    confidence = 0.6 * agreement + 0.4 * completeness
+    needs_review = confidence < 0.6
+
+    return round(confidence, 4), needs_review
