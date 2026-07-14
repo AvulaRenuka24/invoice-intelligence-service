@@ -6,13 +6,8 @@ import uuid
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 
 from qa import ask
-<<<<<<< HEAD
-from extract import extract_pdf_text
-from llm_service import extract
-=======
 from extract import extract_pdf_text, extract_invoice
 from llm_service import get_health, get_metrics
->>>>>>> 4583ed1 (Complete Renuka Week 4 Tasks 1-5)
 
 app = FastAPI(
     title="Invoice Q&A and Insights API",
