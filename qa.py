@@ -4,10 +4,12 @@ from pydantic import BaseModel
 from llm_service import generate
 from retriever import search
 from schemas import AnswerResponse 
+import re
+import logging
 
 PROMPT_FILE = Path("prompts/answer_v1.txt")
 
-
+logger = logging.getLogger(__name__)
 
 def load_prompt(prompt_file=PROMPT_FILE):
     return Path(prompt_file).read_text(encoding="utf-8")
@@ -87,7 +89,7 @@ def ask(
         return AnswerResponse(
             answer="I don't know",
             confidence=0.0,
-            sources=[],
+            cited_invoices = [],
             needs_review=False,
             provider="local",          # until Renuka's service is fully integrated
             latency_ms=0,
@@ -98,7 +100,7 @@ def ask(
         chunk["chunk"]
         for chunk in chunks
     )
-    sources = sorted(
+    cited_invoices = sorted(
         set(
             chunk["invoice_number"]
             for chunk in chunks
@@ -108,7 +110,7 @@ def ask(
     prompt = load_prompt(prompt_file)
     prompt = prompt.replace("{question}", question)
     prompt = prompt.replace("{context}", context)
-    prompt = prompt.replace("{sources}", ", ".join(sources))
+    prompt = prompt.replace("{cited_invoices}", ", ".join(cited_invoices))
 
     messages = [{"role": "user", "content": prompt}]
 
@@ -132,7 +134,7 @@ def ask(
         return AnswerResponse(
             answer="I don't know",
             confidence=0.0,
-            sources=[],
+            cited_invoices = [],
             needs_review=False,
             provider="local",
             latency_ms=latency,
@@ -146,16 +148,30 @@ def ask(
         return AnswerResponse(
             answer="I don't know",
             confidence=confidence,
-            sources=[],
+            cited_invoices = [],
             needs_review=True,
             provider="local",
             latency_ms=latency,
         )
 
+    # 3.5 Post‑check for person questions (who, what is the CEO, etc.)
+    person_keywords = r'\b(?:who|ceo|founder|employee|auditor|president|director|owner|manager|staff)\b'
+    if re.search(person_keywords, question, re.IGNORECASE):
+        person_pattern = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', answer)
+        invoice_stop_words = {"Massive Dynamic", "Acme Corp", "Initech Inc", "Globex LLC",
+                              "Vandelay Industries", "Cyberdyne Systems", "Wonka Industries",
+                              "Nakatomi Trading", "Gekko And Co", "Aperture Labs", "Pied Piper Llc"}
+        possible_names = [name for name in person_pattern if name.lower() not in
+                          [s.lower() for s in invoice_stop_words]]
+        if not possible_names:
+            logger.info("Question asks for a person but no person name found – forcing I don't know.")
+            answer = "I don't know"
+            cited_invoices = []
+
     return AnswerResponse(
         answer=answer,
         confidence=round(confidence, 4),
-        sources=sources,
+        cited_invoices = cited_invoices,
         needs_review=needs_review,
         provider="local",
         latency_ms=latency,
@@ -172,7 +188,7 @@ if __name__ == "__main__":
 
         print("\nAnswer:", result.answer)
         print("Confidence:", result.confidence)
-        print("Sources:", result.sources)
+        print("Cited Invoices:", result.cited_invoices)
         print("Needs Review:", result.needs_review)
         print("Provider:", result.provider)
         print("Latency (ms):", result.latency_ms)
