@@ -1,17 +1,16 @@
-from pathlib import Path
-import pathlib
-import shutil
 import time
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
-import pandas as pd
-from qa import ask
-from extract import extract_pdf_text, compute_extraction_confidence
-from llm_service import extract as extract_invoice 
 import uuid
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from pydantic import BaseModel
+from pathlib import Path
+import shutil
 import logging
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Request
+import pandas as pd
+from pydantic import BaseModel
+from qa import ask
+from extract import extract_pdf_text, compute_extraction_confidence
+from llm_service import extract as extract_invoice, get_health, get_metrics
 
 logger = logging.getLogger(__name__)
 app = FastAPI(
@@ -19,6 +18,16 @@ app = FastAPI(
     description="API for invoice extraction and question answering.",
     version="1.0.0",
 )
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Response-Time-ms"] = f"{duration_ms:.2f}"
+    return response
 
 class ImportRequest(BaseModel):
     folder: str
@@ -31,6 +40,13 @@ def home():
         "message": "Invoice Q&A and Insights API is running"
     }
 
+@app.get("/health")
+def health():
+    return get_health()
+
+@app.get("/metrics")
+def metrics():
+    return get_metrics()
 
 @app.post("/ask")
 def ask_question(question: str):
@@ -38,7 +54,6 @@ def ask_question(question: str):
     Answer questions using Retrieval-Augmented Generation (RAG).
     """
     return ask(question)
-
 
 @app.post("/extract")
 async def extract(file: UploadFile = File(...)):
