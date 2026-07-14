@@ -9,8 +9,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, R
 import pandas as pd
 from pydantic import BaseModel
 from qa import ask
-from extract import extract_pdf_text, compute_extraction_confidence
-from llm_service import extract as extract_invoice, get_health, get_metrics
+from extract import extract_pdf_text 
+from llm_service import extract as extract_invoice, get_health, get_metrics, compute_extraction_confidence
 
 logger = logging.getLogger(__name__)
 app = FastAPI(
