@@ -1,19 +1,21 @@
 source_file,invoice_number,vendor,invoice_date,total_amount,currency,line_items,confidence,needs_review
-1.pdf,INV-24990,Massive,2026-06-01,13082.48,GBP,"[{'description': 'Data Subscription', 'amount': 5716.8}, {'description': 'Consulting Hours', 'amount': 6396.61}, {'description': 'Subscription', 'amount': 476.4}]",0.5,True
-2.pdf,,STARK INDUSTRIES LLC,16 February 2026,0.0,,[],0.5,True
-3.pdf,,WAYNE ENTERPRISES LTD,11.12.2025,0.0,GBP,[],0.5,False
-4.pdf,INV-1001,GEKKO AND CO,2026-02-08,19388.92,USD,"[{'description': 'Data Subscription', 'amount': 985.95}, {'description': 'Data Subscription', 'amount': 5947.76}, {'description': 'Freight and Shipping', 'amount': 630.88}, {'description': 'Onsite Training', 'amount': 4536.6}, {'description': 'Spare Parts', 'amount': 4056.24}, {'description': 'Pay by Transfer', 'amount': 1274.38}, {'description': 'IBAN DE53 1274 3859', 'amount': 1274.38}, {'description': 'Account for Remittance', 'amount': 1274.38}]",0.5,False
-5.pdf,66829-INV,Wayne Enterprises LTD,2025-04-18,19.4149,EUR,"[{'description': 'Subtotal', 'amount': 17.62718}, {'description': 'Tax', 'amount': 1.76272}, {'description': 'Shipping', 'amount': 50.0}, {'description': 'Annual Software License', 'amount': 468.56}, {'description': 'Freight and Shipping', 'amount': 327.65}, {'description': 'Security Audit', 'amount': 499.98}, {'description': 'License Renewal', 'amount': 354.57}]",0.5,False
-6.pdf,89226-INV,GLOBEX LLC,15 January 2025,11420.47,USD,"[{'description': 'Design Work', 'amount': 1011.0}, {'description': 'Freight and Shipping', 'amount': 1783.8}, {'description': 'Freight and Shipping', 'amount': 326.42}, {'description': 'Data Subscription', 'amount': 7717.32}, {'description': 'Total', 'amount': 7717.32}]",0.5,False
-8.pdf,INV-93354,BLUTH COMPANY,2025-11-26,20506.61,INR,"[{'description': 'Cloud Hosting', 'amount': 5300.37}, {'description': 'Onsite Training', 'amount': 5770.82}, {'description': 'Consulting Hours', 'amount': 6307.29}]",0.5,False
-9.pdf,INVOICE-1234,ABC Company,2023-10-05,1000.0,USD,"[{'description': 'Product A', 'amount': 50.0}, {'description': 'Product B', 'amount': 60.0}]",0.5,False
-10.pdf,INV-1001,APERTURE LABS,2025-08-04,19837.02,INR,"[{'description': 'Onsite training', 'amount': 4115.88}, {'description': 'Freight and shipping', 'amount': 7863.9}, {'description': 'License renewal', 'amount': 153.91}, {'description': 'Spare parts', 'amount': 4397.16}]",0.5,False
-11.pdf,INV-26830,Black Mesa Supplies,2025-11-03,6923.62,USD,"[{'description': 'Cloud Hosting', 'amount': 988.12}, {'description': 'License Renewal', 'amount': 3553.08}, {'description': 'Data Subscription', 'amount': 1536.08}, {'description': 'Annual Software License', 'amount': 846.34}, {'description': 'Subtotal', 'amount': 0.0}, {'description': 'Tax', 'amount': 553.89}, {'description': 'Shipping', 'amount': 12.5}, {'description': 'Total', 'amount': 0.0}, {'description': 'Payment Due', 'amount': 0.0}, {'description': 'Customer Account', 'amount': 0.0}, {'description': 'PO Item', 'amount': 0.0}]",0.5,False
-12.pdf,,CYBERDYNE SYSTEMS,,0.0,GBP,[],0.5,False
-13.pdf,INV-6245,UMBRELLA CORPORATION INC,2025-10-14,332539.0,EUR,"[{'description': 'Premium Support Plan', 'amount': 130504.0}, {'description': 'Server Hardware', 'amount': 202035.0}]",0.5,False
-14.pdf,INV-33776,UMBRELLA CORPORATION INC,2026-11-12,3884.92,EUR,"[{'description': 'Premium Support Plan', 'amount': 1790.46}, {'description': 'License Renewal', 'amount': 1336.04}, {'description': 'Design Work', 'amount': 470.65}]",0.5,False
-15.pdf,INV-10295,OSCORP INDUSTRIES,2026-11-01,4773.55,USD,"[{'description': 'License Renewal', 'amount': 3439.36}, {'description': 'Design Work', 'amount': 312.99}, {'description': 'Data Subscription', 'amount': 499.44}, {'description': 'Annual Software License', 'amount': 521.76}, {'description': 'Document 2026/INV/10295', 'amount': 0.0}]",0.5,False
-16.pdf,INV-58592,OSCORP INDUSTRIES,2025-07-27,12692.94,INR,"[{'description': 'Design Work', 'amount': 2224.6}, {'description': 'Spare Parts', 'amount': 9244.29}, {'description': 'Onsite Training', 'amount': 70.15}]",0.5,False
-17.pdf,INV-74453,Cyberdyne Systems,2026-01-03,12699.21,GBP,"[{'description': 'Premium Support Plan', 'amount': 6236.37}, {'description': 'Freight and Shipping', 'amount': 1396.85}, {'description': 'Security Audit', 'amount': 3094.92}, {'description': 'Security Audit', 'amount': 343.88}, {'description': 'Subtotal', 'amount': 10728.14}, {'description': 'Tax', 'amount': 1800.0}, {'description': 'Shipping', 'amount': 40.0}, {'description': 'Total', 'amount': 12699.21}]",0.5,False
-18.pdf,INV-2026-097587,Hooli Inc.,10/27/2025,12917.27,USD,"[{'description': 'Cloud Hosting', 'amount': 3498.08}, {'description': 'Onsite Training', 'amount': 2565.92}, {'description': 'Quarterly Maintenance', 'amount': 1014.4}, {'description': 'Spare Parts', 'amount': 481.92}, {'description': 'Server Hardware', 'amount': 3386.52}]",0.5,False
-19.pdf,INV-72483,Wayne Enterprises LTD,2026-07-28,11709.74,GBP,"[{'description': 'Premium Support Plan', 'amount': 7928.5}, {'description': 'Design Work', 'amount': 3661.75}, {'description': 'Security Audit', 'amount': 119.49}, {'description': 'Subtotal', 'amount': 11709.74}, {'description': 'Shipping', 'amount': 25.0}]",0.5,False
+1.pdf,IN/64328/26,Delphi Electronics GmbH,26 Jun 2025,0.0,USD,[],0.4,True
+2.pdf,IN/68031/26,Acme Industrial Supply,07-27-2025,11143.96,INR,[],1.0,False
+3.pdf,INV33230-A,Copper Canyon Foods,12 May 2025,0.0,USD,[],0.4,True
+4.pdf,IN/48913/26,Northwind Traders LLC,09-23-2025,2761.5,GBP,[],1.0,False
+5.pdf,033932,Cedar & Pine Timber,03 Aug 2025,0.0,USD,[],0.4,True
+6.pdf,INV57518-A,Delphi Electronics GmbH,10/10/2025,10385.0,JPY,[],1.0,False
+7.pdf,34147-2026,Globex Corporation,21 Apr 2026,0.0,USD,[],0.4,True
+8.pdf,PO-18890,Copper Canyon Foods,01-14-2026,4424.0,JPY,[],1.0,False
+9.pdf,INV16082-A,Northwind Traders LLC,2026-06-19,0.0,USD,[],0.4,True
+10.pdf,6069-2026,Zenith Medical Supply,10/12/2025,15927.96,INR,[],1.0,False
+11.pdf,INV-86759,Acme Industrial Supply,"Feb 13, 2025",0.0,USD,[],0.4,True
+12.pdf,INV-52334,Ironclad Hardware Inc,"Feb 10, 2025",1165.73,GBP,[],1.0,False
+13.pdf,012207,Globex Corporation,23 May 2026,0.0,USD,[],0.4,True
+14.pdf,INV-70735,Cedar & Pine Timber,28/06/2025,17692.19,GBP,[],1.0,False
+15.pdf,INV-87715,Cedar & Pine Timber,01-15-2026,0.0,USD,[],0.4,True
+16.pdf,019968,Bombay Textiles Pvt,09 Aug 2025,476.0,JPY,[],1.0,False
+17.pdf,PO-98500,Globex Corporation,"Feb 26, 2025",0.0,USD,[],0.4,True
+18.pdf,072647,Bombay Textiles Pvt,16 Nov 2025,10263.03,GBP,[],1.0,False
+19.pdf,PO-33865,Bombay Textiles Pvt,2025-07-31,0.0,USD,[],0.4,True
+20.pdf,INV98786-A,Atlas Paper & Print,02-27-2026,7.704,EUR,[],1.0,False
