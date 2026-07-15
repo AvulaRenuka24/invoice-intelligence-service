@@ -42,7 +42,7 @@ def extract_invoice(invoice_text: str, filename: str = "sample"):
 
 if __name__ == "__main__":
 
-    invoice_folder = Path("data/raw_invoices/invoices_corpus")
+    invoice_folder = Path("data/invoices_corpus_1000")
 
     files = sorted(
         invoice_folder.glob("*.pdf"),
