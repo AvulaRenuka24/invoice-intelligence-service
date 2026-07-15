@@ -33,3 +33,19 @@ Key review example:
 ## Shared Task 7 – Renuka’s reflection (to be completed by Renuka)
 
 <!-- Renuka: write your half-page reflection here. Include what you owned, one thing you’d do differently, and one time you helped or were helped. -->
+
+## What I owned
+
+I owned the Week 4 LLM service improvements, including centralizing all model interactions into `llm_service.py`, implementing provider abstraction, retry logic with exponential backoff, request timeout handling, in-memory caching, circuit breaker support, and exposing `/health` and `/metrics` endpoints. I also updated the project documentation, tested the API endpoints, and helped integrate these changes with the rest of the invoice processing pipeline.
+
+## One thing I would do differently
+
+I would spend more time designing the overall architecture before starting implementation. During development, a few components had to be refactored as new requirements were introduced. Planning the interfaces and responsibilities earlier would have reduced rework and made integration smoother.
+
+## One time I helped or was helped
+
+I worked closely with Rohit while integrating our changes into a single codebase. During integration, we resolved merge conflicts between the LLM service and extraction pipeline together. We reviewed each other's code, discussed implementation decisions, and ensured that the final application worked correctly with both our contributions.
+
+## What I learned
+
+This project helped me understand how to build a production-oriented AI service rather than just an AI model. I learned about designing reusable services, implementing reliability features such as retries and circuit breakers, using Git branches and pull requests for collaborative development, resolving merge conflicts, and exposing AI functionality through well-designed REST APIs. It also gave me practical experience working in a team on a shared codebase.
