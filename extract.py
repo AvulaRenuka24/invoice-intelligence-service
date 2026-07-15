@@ -36,8 +36,6 @@ def extract_invoice(invoice_text: str, filename: str = "sample"):
     """
     return extract(invoice_text=invoice_text, filename=filename)
 
-
-
 # ---------------------------------------------------------------------------
 # CLI – Extract from first 20 PDFs and save CSV
 # ---------------------------------------------------------------------------

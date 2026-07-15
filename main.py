@@ -1,6 +1,3 @@
-from pathlib import Path
-import pathlib
-import shutil
 import time
 import uuid
 import asyncio
@@ -26,8 +23,8 @@ from llm_service import (
     get_health,
     get_metrics,
 )
+from request_context import request_id_var
 
-logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 app = FastAPI(
@@ -36,15 +33,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
-class ImportRequest(BaseModel):
-    folder: str
-
-jobs = {}
-
 # ------------------------------------------------------------------
 # Request ID Middleware (Renuka Task 5)
 # ------------------------------------------------------------------
-# add this import near the top
+
 from request_context import request_id_var
 
 @app.middleware("http")
@@ -70,27 +62,15 @@ def home():
         "message": "Invoice Q&A and Insights API is running"
     }
 
-
-# ------------------------------------------------------------------
-# Health Endpoint (Renuka Task 5)
-# ------------------------------------------------------------------
 @app.get("/health")
 def health():
-    """
-    Returns current LLM health information.
-    """
     return get_health()
 
-
-# ------------------------------------------------------------------
-# Metrics Endpoint (Renuka Task 5)
-# ------------------------------------------------------------------
 @app.get("/metrics")
 def metrics():
-    """
-    Returns runtime metrics.
-    """
     return get_metrics()
+
+
 
 
 # ------------------------------------------------------------------
@@ -102,6 +82,7 @@ def ask_question(question: str):
     Answer questions using Retrieval-Augmented Generation (RAG).
     """
     return ask(question)
+
 
 
 # ------------------------------------------------------------------

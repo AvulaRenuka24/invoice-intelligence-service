@@ -49,7 +49,7 @@ class _RequestIdFilter(logging.Filter):
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
+logger.setLevel(logging.INFO)
 logger.addHandler(_handler)
 logger.addFilter(_RequestIdFilter())
 
@@ -74,27 +74,21 @@ class LLMUnavailable(Exception):
 # Provider (built once, swappable via LLM_PROVIDER)
 # ---------------------------------------------------------------------
 
-_active_model_name = (
-    settings.tinyllama_model_name
-    if settings.llm_provider.lower() == "tinyllama"
-    else settings.model_name
-)
-
 try:
-    _provider = build_provider(settings.llm_provider, _active_model_name)
-    logger.info("Loaded provider=%s model=%s", settings.llm_provider, _active_model_name)
+    _provider = build_provider(settings.llm_provider, settings.model_name)
+    logger.info("Loaded provider=%s model=%s", settings.llm_provider, settings.model_name)
 except Exception as e:
     raise LLMUnavailable(
         f"Unable to build provider '{settings.llm_provider}' "
-        f"(model '{_active_model_name}'): {e}"
+        f"(model '{settings.model_name}'): {e}"
     )
 
 _executor = ThreadPoolExecutor(max_workers=2)
 _breaker = CircuitBreaker(
     failure_threshold=settings.breaker_threshold,
-    cooldown_s=settings.breaker_cool_off_s,
+    cooldown_s=settings.breaker_cooldown_s,
 )
-_cache = ResponseCache(max_size=settings.cache_max_size)
+_cache = ResponseCache()
 
 _metrics_lock = Lock()
 _metrics_state = {
