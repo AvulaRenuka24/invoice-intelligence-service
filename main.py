@@ -44,18 +44,20 @@ jobs = {}
 # ------------------------------------------------------------------
 # Request ID Middleware (Renuka Task 5)
 # ------------------------------------------------------------------
+# add this import near the top
+from request_context import request_id_var
+
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
-    request_id = str(uuid.uuid4())
+    request_id = str(uuid.uuid4())[:8]   # was the full uuid before
+    request_id_var.set(request_id)        # NEW — this line is what makes logs pick it up
+
     start_time = time.perf_counter()
-
     response = await call_next(request)
-
     duration_ms = (time.perf_counter() - start_time) * 1000
 
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Response-Time-ms"] = f"{duration_ms:.2f}"
-
     return response
 
 
