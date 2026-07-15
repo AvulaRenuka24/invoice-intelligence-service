@@ -482,9 +482,9 @@ Responsible for:
 
 # Authors
 
-Renuka Avula
+1.Renuka Avula
 
-Rohit
+2.Rohit
 
 AI/ML Engineering Internship
 
