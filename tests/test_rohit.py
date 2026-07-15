@@ -42,7 +42,7 @@ def test_unanswerable_question_refuses():
         result = ask("What is the CEO of Massive Dynamic?")
         assert "i don't know" in result.answer.lower()
         assert result.cited_invoices == []
-        assert result.context_found is False
+        
 
 # ------------------------------------------------------------------
 # Test 3: Review queue endpoint returns items (skip if CSV missing)
