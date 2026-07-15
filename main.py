@@ -19,6 +19,8 @@ from extract import (
     extract_invoice,
     compute_extraction_confidence,
 )
+import shutil
+from pathlib import Path
 from llm_service import (
     get_health,
     get_metrics,
@@ -37,7 +39,10 @@ app = FastAPI(
 # Request ID Middleware (Renuka Task 5)
 # ------------------------------------------------------------------
 
-from request_context import request_id_var
+class ImportRequest(BaseModel):
+    folder: str
+
+jobs = {}
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
@@ -177,17 +182,24 @@ async def resolve_review(invoice_number: str, updates: dict):
     if len(idx) == 0:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
+    # Apply any field updates the user sent
     for field, value in updates.items():
         if field in df.columns:
             df.at[idx[0], field] = value
     
+    # Make sure the review metadata columns exist
+    if "reviewed_by" not in df.columns:
+        df["reviewed_by"] = ""
+    if "reviewed_at" not in df.columns:
+        df["reviewed_at"] = 0.0          # numeric column, will hold a Unix timestamp
+    
+    # Clear the review flag and record who / when
     df.at[idx[0], "needs_review"] = False
     df.at[idx[0], "reviewed_by"] = "rohit"
-    df.at[idx[0], "reviewed_at"] = str(time.time())
+    df.at[idx[0], "reviewed_at"] = time.time()   # float timestamp, not a string
     
     df.to_csv(csv_path, index=False)
     return {"status": "reviewed", "invoice_number": invoice_number}
-
 # ---------------------------------------------------------------------------
 # Background Folder Import
 # ---------------------------------------------------------------------------
