@@ -86,7 +86,7 @@ except Exception as e:
 _executor = ThreadPoolExecutor(max_workers=2)
 _breaker = CircuitBreaker(
     failure_threshold=settings.breaker_threshold,
-    cooldown_s=settings.breaker_cooldown_s,
+    cooldown_s=settings.breaker_cool_off_s,
 )
 _cache = ResponseCache()
 
