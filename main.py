@@ -1,16 +1,30 @@
 import time
 import uuid
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-import shutil
 import logging
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Request
 import pandas as pd
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    UploadFile,
+    File,
+    Request,
+    BackgroundTasks,
+)
+from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel
 from qa import ask
-from extract import extract_pdf_text 
-from llm_service import extract as extract_invoice, get_health, get_metrics, compute_extraction_confidence
+from extract import (
+    extract_pdf_text,
+    extract_invoice,
+    compute_extraction_confidence,
+)
+from llm_service import (
+    get_health,
+    get_metrics,
+)
+from request_context import request_id_var
+
 
 logger = logging.getLogger(__name__)
 app = FastAPI(
@@ -19,21 +33,29 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# ------------------------------------------------------------------
+# Request ID Middleware (Renuka Task 5)
+# ------------------------------------------------------------------
+
+from request_context import request_id_var
+
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
-    request_id = str(uuid.uuid4())
+    request_id = str(uuid.uuid4())[:8]   # was the full uuid before
+    request_id_var.set(request_id)        # NEW — this line is what makes logs pick it up
+
     start_time = time.perf_counter()
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start_time) * 1000
+
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Response-Time-ms"] = f"{duration_ms:.2f}"
     return response
 
-class ImportRequest(BaseModel):
-    folder: str
 
-jobs = {}
-
+# ------------------------------------------------------------------
+# Home
+# ------------------------------------------------------------------
 @app.get("/")
 def home():
     return {
@@ -48,6 +70,12 @@ def health():
 def metrics():
     return get_metrics()
 
+
+
+
+# ------------------------------------------------------------------
+# Question Answering
+# ------------------------------------------------------------------
 @app.post("/ask")
 def ask_question(question: str):
     """
@@ -55,6 +83,11 @@ def ask_question(question: str):
     """
     return ask(question)
 
+
+
+# ------------------------------------------------------------------
+# Invoice Extraction
+# ------------------------------------------------------------------
 @app.post("/extract")
 async def extract(file: UploadFile = File(...)):
     """

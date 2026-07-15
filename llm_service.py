@@ -1,131 +1,189 @@
 """
-Week 4 – Centralized LLM Service
+llm_service.py — Centralized LLM Service (Renuka Tasks 1-5).
 
-This module is the ONLY place that loads or talks to the LLM.
+This module is the ONLY file that touches the model. Every other file
+calls generate() or extract().
+
+  Task 1 — one file, one place: generate(), extract(), model built once.
+  Task 2 — model swappable by a setting (LLM_PROVIDER), via providers.py.
+  Task 3 — timeout, retry-with-backoff, circuit breaker around every call.
+  Task 4 — response cache (hits/misses) and a regex fallback, clearly
+           marked source="fallback", used whenever the model is in trouble.
+  Task 5 — settings from config.py, request-id-tagged logs, /health, /metrics.
 """
-
-from pathlib import Path
-
-from pydantic import ValidationError
-
-from models import Invoice
-from extract_fallback import extract_with_regex
 
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from pathlib import Path
+from threading import Lock
 from typing import Dict, List
-from models import Invoice
+
+from cache import ResponseCache
+from circuit_breaker import CircuitBreaker
+from config import settings
 from extract_fallback import extract_with_regex
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from providers import build_provider
+from request_context import request_id_var
+from schemas import InvoiceFields
 
 # ---------------------------------------------------------------------
-# Logging
+# Logging (every line is tagged with the current request id)
 # ---------------------------------------------------------------------
 
 os.makedirs("logs", exist_ok=True)
 
-logging.basicConfig(
-    filename="logs/llm_calls.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-logger = logging.getLogger(__name__)
-PROMPTS_DIR = Path("prompts")
 LOG_FILE = Path("logs/llm_calls.log")
 
+_handler = logging.FileHandler(LOG_FILE)
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - rid=%(request_id)s - %(message)s")
+)
+
+
+class _RequestIdFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = request_id_var.get()
+        return True
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(_handler)
+logger.addFilter(_RequestIdFilter())
+
+PROMPTS_DIR = Path("prompts")
 BEST_PROMPT = "extraction_v3_worked_example.txt"
+
+
 # ---------------------------------------------------------------------
 # Exception
 # ---------------------------------------------------------------------
 
 
 class LLMUnavailable(Exception):
-    """Raised when the LLM cannot be loaded or used."""
+    """Raised when the LLM cannot be loaded or used. Callers only ever
+    see this exception — timeouts, transient errors, and an open
+    breaker all surface as LLMUnavailable."""
+
     pass
 
 
 # ---------------------------------------------------------------------
-# Model (loaded once)
+# Provider (built once, swappable via LLM_PROVIDER)
 # ---------------------------------------------------------------------
-
-MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
 
 try:
-
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_NAME,
-        torch_dtype="auto",
-        device_map="auto",
+    _provider = build_provider(settings.llm_provider, settings.model_name)
+    logger.info("Loaded provider=%s model=%s", settings.llm_provider, settings.model_name)
+except Exception as e:
+    raise LLMUnavailable(
+        f"Unable to build provider '{settings.llm_provider}' "
+        f"(model '{settings.model_name}'): {e}"
     )
 
-    logger.info("Loaded model: %s", MODEL_NAME)
+_executor = ThreadPoolExecutor(max_workers=2)
+_breaker = CircuitBreaker(
+    failure_threshold=settings.breaker_threshold,
+    cooldown_s=settings.breaker_cooldown_s,
+)
+_cache = ResponseCache()
 
-except Exception as e:
-    raise LLMUnavailable(f"Unable to load model '{MODEL_NAME}': {e}")
+_metrics_lock = Lock()
+_metrics_state = {
+    "requests": 0,
+    "total_latency_ms": 0.0,
+    "last_latency_ms": 0,
+    "fallback_count": 0,
+    "answer_count": 0,
+}
+
+
+def _record_latency(latency_ms: float) -> None:
+    with _metrics_lock:
+        _metrics_state["requests"] += 1
+        _metrics_state["total_latency_ms"] += latency_ms
+        _metrics_state["last_latency_ms"] = round(latency_ms, 2)
+
+
+def _record_answer(used_fallback: bool) -> None:
+    with _metrics_lock:
+        _metrics_state["answer_count"] += 1
+        if used_fallback:
+            _metrics_state["fallback_count"] += 1
 
 
 # ---------------------------------------------------------------------
-# Text Generation
+# Resilience: timeout -> retry with backoff -> circuit breaker
 # ---------------------------------------------------------------------
 
 
-def generate(
-    messages: List[Dict[str, str]],
-    max_tokens: int = 256,
+def _call_provider_with_timeout(
+    messages: List[Dict[str, str]], max_tokens: int, temperature: float
 ) -> str:
-    """
-    Generate text from the LLM.
-    """
-
+    future = _executor.submit(_provider.complete, messages, max_tokens, temperature)
     try:
-
-        start = time.time()
-
-        prompt = tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
+        return future.result(timeout=settings.request_timeout_s)
+    except FutureTimeoutError:
+        raise LLMUnavailable(
+            f"Model call timed out after {settings.request_timeout_s}s"
         )
 
-        inputs = tokenizer(
-            prompt,
-            return_tensors="pt",
-        ).to(model.device)
 
-        input_tokens = inputs.input_ids.shape[-1]
+def _call_with_resilience(
+    messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0
+) -> str:
+    """Timeout on every call, retry with growing backoff on transient
+    errors, and a circuit breaker that stops calling the model after
+    repeated failures. Never retries on a breaker-open short-circuit."""
 
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            do_sample=False,
-            temperature=0,
-        )
+    if not _breaker.allow_call():
+        logger.warning("Breaker OPEN — short-circuiting to fallback")
+        raise LLMUnavailable("Circuit breaker is open; model calls are paused.")
 
-        generated = outputs[0][input_tokens:]
+    backoffs = [0.5, 1.0, 2.0][: settings.max_retries]
+    last_error: Exception = LLMUnavailable("no attempts made")
 
-        answer = tokenizer.decode(
-            generated,
-            skip_special_tokens=True,
-        ).strip()
+    for attempt, wait in enumerate([0.0] + backoffs):
+        if wait:
+            time.sleep(wait)
+        try:
+            start = time.time()
+            result = _call_provider_with_timeout(messages, max_tokens, temperature)
+            _record_latency((time.time() - start) * 1000)
+            _breaker.record_success()
+            return result
+        except Exception as e:
+            last_error = e
+            logger.warning("Model call attempt %d failed: %s", attempt + 1, e)
 
-        logger.info(
-            "Latency=%.2fs Input=%d Output=%d",
-            time.time() - start,
-            input_tokens,
-            len(generated),
-        )
+    _breaker.record_failure()
+    raise LLMUnavailable(str(last_error))
 
-        return answer
 
-    except Exception as e:
-        logger.exception("Generation failed")
-        raise LLMUnavailable(str(e))
-    
+# ---------------------------------------------------------------------
+# Text generation (cached, resilient)
+# ---------------------------------------------------------------------
+
+
+def generate(messages: List[Dict[str, str]], max_tokens: int = 256) -> str:
+    """Generate text from the active provider. Cached; falls through
+    timeout/retry/breaker protection. Raises LLMUnavailable on failure —
+    callers that need a fallback (like extract()) catch it."""
+
+    key = _cache.make_key(settings.llm_provider, str(messages), max_tokens, 0.0)
+    cached = _cache.get(key)
+    if cached is not None:
+        logger.info("cache=hit provider=%s", settings.llm_provider)
+        return cached
+
+    result = _call_with_resilience(messages, max_tokens, temperature=0.0)
+    _cache.set(key, result)
+    logger.info("cache=miss provider=%s", settings.llm_provider)
+    return result
+
+
 def load_prompt(prompt_file: str) -> str:
     """Load a prompt template."""
     return (PROMPTS_DIR / prompt_file).read_text(encoding="utf-8")
@@ -148,153 +206,168 @@ def clean_json_response(response: str) -> str:
 
 def call_llm(prompt: str, max_tokens: int = 512) -> str:
     """Call generate() and clean the response."""
-
-    messages = [
-        {
-            "role": "user",
-            "content": prompt,
-        }
-    ]
-
-    response = generate(
-        messages=messages,
-        max_tokens=max_tokens,
-    )
-
+    messages = [{"role": "user", "content": prompt}]
+    response = generate(messages=messages, max_tokens=max_tokens)
     return clean_json_response(response)
 
 
 def log_result(filename: str, method: str) -> None:
-    """Log extraction method."""
-
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-
+    """Log extraction method (llm / retry / fallback) per file."""
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{filename} -> {method}\n")
-    
+        f.write(f"rid={request_id_var.get()} {filename} -> {method}\n")
 
+
+# ---------------------------------------------------------------------
+# Extraction: LLM -> retry -> regex fallback (Renuka Task 4)
+# ---------------------------------------------------------------------
+
+
+def _coerce_invoice_fields(obj) -> InvoiceFields:
+    """Normalize whatever extract_with_regex()/model_validate_json()
+    hands back (a pydantic model or a dict) into InvoiceFields."""
+    if isinstance(obj, InvoiceFields):
+        return obj
+    if hasattr(obj, "model_dump"):
+        data = obj.model_dump()
+    elif isinstance(obj, dict):
+        data = obj
+    else:
+        data = {
+            "vendor": getattr(obj, "vendor", ""),
+            "invoice_number": getattr(obj, "invoice_number", ""),
+            "invoice_date": getattr(obj, "invoice_date", ""),
+            "total_amount": getattr(obj, "total_amount", 0.0),
+            "currency": getattr(obj, "currency", ""),
+            "line_items": getattr(obj, "line_items", []),
+        }
+    known_fields = InvoiceFields.model_fields.keys()
+    return InvoiceFields(**{k: v for k, v in data.items() if k in known_fields})
 
 
 def extract(
     invoice_text: str,
     filename: str = "sample",
     prompt_file: str = BEST_PROMPT,
-) -> Invoice:
+) -> InvoiceFields:
     """
     Extract structured invoice data using:
-    1. LLM
-    2. Retry once on validation failure
-    3. Regex fallback
+      1. LLM
+      2. Retry once (with the validation error appended to the prompt)
+      3. Regex fallback — used whenever the breaker is open, a call
+         times out, or the model returns unusable output.
     """
 
     prompt = load_prompt(prompt_file).replace("{text}", invoice_text)
 
-    # ---------- First Attempt ----------
+    # ---------- First attempt ----------
     try:
-
         response = call_llm(prompt)
-
-        invoice = Invoice.model_validate_json(response)
-
+        invoice = _coerce_invoice_fields(InvoiceFields.model_validate_json(response))
+        invoice.source = "llm"
+        confidence, needs_review = compute_extraction_confidence(invoice_text, invoice)
+        invoice.confidence, invoice.needs_review = confidence, needs_review
         log_result(filename, "llm")
-
+        _record_answer(used_fallback=False)
         return invoice
-
-    except (ValidationError, Exception) as first_error:
-
-        logger.warning(
-            "%s: LLM extraction failed: %s",
-            filename,
-            first_error,
-        )
+    except Exception as first_error:
+        logger.warning("%s: LLM extraction failed: %s", filename, first_error)
 
     # ---------- Retry ----------
     try:
-
         retry_prompt = (
             prompt
             + "\n\nPrevious response failed validation.\n"
             + str(first_error)
             + "\nReturn ONLY valid JSON."
         )
-
         response = call_llm(retry_prompt)
-
-        invoice = Invoice.model_validate_json(response)
-
+        invoice = _coerce_invoice_fields(InvoiceFields.model_validate_json(response))
+        invoice.source = "llm"
+        confidence, needs_review = compute_extraction_confidence(invoice_text, invoice)
+        invoice.confidence, invoice.needs_review = confidence, needs_review
         log_result(filename, "retry")
-
+        _record_answer(used_fallback=False)
         return invoice
-
     except Exception as retry_error:
+        logger.warning("%s: Retry failed: %s", filename, retry_error)
 
-        logger.warning(
-            "%s: Retry failed: %s",
-            filename,
-            retry_error,
-        )
-
-    # ---------- Regex ----------
-    invoice = extract_with_regex(invoice_text)
-
+    # ---------- Regex fallback ----------
+    invoice = _coerce_invoice_fields(extract_with_regex(invoice_text))
+    invoice.source = "fallback"
+    invoice.confidence = 0.0
+    invoice.needs_review = True
     log_result(filename, "fallback")
-
+    _record_answer(used_fallback=True)
     return invoice
-# ---------------------------------------------------------------------
-# Health
-# ---------------------------------------------------------------------
-
-def get_health():
-    """
-    Health information for the active LLM.
-    """
-    return {
-        "status": "healthy",
-        "provider": "local",
-        "model": MODEL_NAME,
-    }
 
 
-# ---------------------------------------------------------------------
-# Metrics
-# ---------------------------------------------------------------------
-
-def get_metrics():
+def compute_extraction_confidence(
+    invoice_text: str, llm_invoice: InvoiceFields
+) -> tuple[float, bool]:
     """
-    Basic runtime metrics.
+    Confidence signals:
+      - Regex agreement: compare LLM total_amount with the regex total
+      - Field completeness: whether key fields are non-empty
+    Returns (confidence, needs_review).
     """
-    return {
-        "model": MODEL_NAME,
-        "device": str(model.device),
-    }
-    
-def compute_extraction_confidence(invoice_text: str, llm_invoice: Invoice) -> tuple[float, bool]:
-    """
-    Compute a confidence score for an extraction.
-    Signals:
-      - Regex agreement: compare LLM total_amount with regex total
-      - Field completeness: whether key fields are non‑empty
-    Returns (confidence, needs_review)
-    """
-    # Regex agreement
     try:
-        regex_invoice = extract_with_regex(invoice_text)
+        regex_invoice = _coerce_invoice_fields(extract_with_regex(invoice_text))
         regex_total = regex_invoice.total_amount
         llm_total = llm_invoice.total_amount
-        if regex_total and llm_total and abs(regex_total - llm_total) < 0.01:
-            agreement = 1.0
-        else:
-            agreement = 0.0
+        agreement = (
+            1.0 if regex_total and llm_total and abs(regex_total - llm_total) < 0.01 else 0.0
+        )
     except Exception:
         agreement = 0.0
 
-    # Field completeness
-    fields = [llm_invoice.vendor, llm_invoice.invoice_number,
-              llm_invoice.invoice_date, llm_invoice.currency]
+    fields = [
+        llm_invoice.vendor,
+        llm_invoice.invoice_number,
+        llm_invoice.invoice_date,
+        llm_invoice.currency,
+    ]
     present = sum(1 for f in fields if f and str(f).strip())
     completeness = present / len(fields) if fields else 0.0
 
     confidence = 0.6 * agreement + 0.4 * completeness
-    needs_review = confidence < 0.6
+    needs_review = confidence < settings.confidence_threshold
 
     return round(confidence, 4), needs_review
+
+
+# ---------------------------------------------------------------------
+# Health (Renuka Task 5)
+# ---------------------------------------------------------------------
+
+
+def get_health() -> dict:
+    """Live status: is the model loaded, which provider, breaker state,
+    and the last call's latency."""
+    return {
+        "model_loaded": _provider is not None,
+        "provider": settings.llm_provider,
+        "breaker": _breaker.state,
+        "last_latency_ms": _metrics_state["last_latency_ms"],
+    }
+
+
+# ---------------------------------------------------------------------
+# Metrics (Renuka Task 5)
+# ---------------------------------------------------------------------
+
+
+def get_metrics() -> dict:
+    """Running totals: request count, average latency, cache hit rate,
+    and fallback rate."""
+    requests = _metrics_state["requests"]
+    avg_latency = round(_metrics_state["total_latency_ms"] / requests, 2) if requests else 0.0
+    answers = _metrics_state["answer_count"]
+    fallback_rate = (
+        round(_metrics_state["fallback_count"] / answers, 4) if answers else 0.0
+    )
+    return {
+        "requests": requests,
+        "avg_latency_ms": avg_latency,
+        "cache_hit_rate": _cache.hit_rate,
+        "fallback_rate": fallback_rate,
+    }

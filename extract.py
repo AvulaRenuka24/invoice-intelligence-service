@@ -28,7 +28,13 @@ def extract_pdf_text(pdf_path: Path) -> str:
 
     return "\n".join(pages)
 
-
+def extract_invoice(invoice_text: str, filename: str = "sample"):
+    """
+    Thin wrapper so main.py can import extract_invoice by name.
+    Delegates to llm_service.extract(), which already runs the
+    LLM -> retry -> regex-fallback flow and sets confidence/needs_review.
+    """
+    return extract(invoice_text=invoice_text, filename=filename)
 
 # ---------------------------------------------------------------------------
 # CLI – Extract from first 20 PDFs and save CSV
@@ -77,7 +83,7 @@ if __name__ == "__main__":
                 "invoice_date": invoice.invoice_date,
                 "total_amount": invoice.total_amount,
                 "currency": invoice.currency,
-                "line_items": str([item.model_dump() for item in invoice.line_items]),
+                "line_items": str(invoice.line_items),
                 "confidence": conf,
                 "needs_review": needs_rev,
             }
