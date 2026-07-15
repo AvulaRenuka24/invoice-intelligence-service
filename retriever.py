@@ -6,7 +6,7 @@ import pdfplumber
 import chromadb
 from sentence_transformers import SentenceTransformer
 
-DATA_DIR = Path("data/raw_invoices/invoices_corpus")
+DATA_DIR = Path("data/invoices_corpus_1000")
 DB_DIR = Path("data/chroma_db")
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
