@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     tinyllama_model_name: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
     # Renuka Task 3 — resilience
-    request_timeout_s: float = 10.0
+    request_timeout_s: float = 30.0
     max_retries: int = 2                 # retries AFTER the first attempt
     breaker_threshold: int = 5           # consecutive failures before OPEN
     breaker_cool_off_s: float = 30.0     # OPEN -> HALF_OPEN after this long
