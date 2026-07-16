@@ -259,6 +259,8 @@ def extract(
 
     prompt = load_prompt(prompt_file).replace("{text}", invoice_text)
 
+    first_error = None
+
     # ---------- First attempt ----------
     try:
         response = call_llm(prompt)
@@ -274,10 +276,11 @@ def extract(
 
     # ---------- Retry ----------
     try:
+        error_detail = str(first_error) if first_error else "Unknown error"
         retry_prompt = (
             prompt
             + "\n\nPrevious response failed validation.\n"
-            + str(first_error)
+            + error_detail
             + "\nReturn ONLY valid JSON."
         )
         response = call_llm(retry_prompt)

@@ -11,6 +11,7 @@ from llm_service import extract, compute_extraction_confidence
 from extract_fallback import extract_with_regex
 from models import Invoice
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ if __name__ == "__main__":
         print("=" * 60)
         print(file.name)
         print(invoice.model_dump())
+        time.sleep(1)
 
         extracted_rows.append(
             {
