@@ -24,7 +24,7 @@ from cache import ResponseCache
 from circuit_breaker import CircuitBreaker
 from config import settings
 from extract_fallback import extract_with_regex
-from providers import build_provider
+from providers import LocalQwenProvider, StubProvider
 from request_context import request_id_var
 from schemas import InvoiceFields
 
@@ -72,10 +72,39 @@ class LLMUnavailable(Exception):
 
 # ---------------------------------------------------------------------
 # Provider (built once, swappable via LLM_PROVIDER)
+#
+# This is the ONLY place in the app that imports transformers/torch.
+# providers.py stays free of the model library — it just receives an
+# already-built model + tokenizer — so Task 1's rule holds: "only
+# llm_service.py mentions the model."
 # ---------------------------------------------------------------------
 
+
+def _build_provider(provider_name: str, model_name: str):
+    name = (provider_name or "local").strip().lower()
+
+    if name == "stub":
+        return StubProvider()
+
+    if name in ("local", "tinyllama"):
+        import torch  # noqa: F401  (imported for device_map="auto" support)
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype="auto",
+            device_map="auto",
+        )
+        return LocalQwenProvider(model_name, model, tokenizer)
+
+    raise ValueError(
+        f"Unknown LLM_PROVIDER '{provider_name}'. Expected 'local', 'stub', or 'tinyllama'."
+    )
+
+
 try:
-    _provider = build_provider(settings.llm_provider, settings.model_name)
+    _provider = _build_provider(settings.llm_provider, settings.model_name)
     logger.info("Loaded provider=%s model=%s", settings.llm_provider, settings.model_name)
 except Exception as e:
     raise LLMUnavailable(
